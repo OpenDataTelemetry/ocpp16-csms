@@ -1,19 +1,14 @@
-name: ci-build-golang-workflow
+name: ocpp16-csms-workflow
 on:
   push:
     branches:
       - develop
 jobs:
-  check-application:
+  check-application:  
+    name: build-job
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
-        with:
-          go-version: 1.22
-
-      # - run: go test
-      # - run: go run main.go
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -31,4 +26,4 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: rogeriocassares/ocpp16-csms:0.13
+          tags: smartcampusmaua/ocpp16-csms:0.13
