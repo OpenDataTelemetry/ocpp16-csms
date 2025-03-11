@@ -26,4 +26,4 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: smartcampusmaua/ocpp16-csms:0.13
+          tags: smartcampusmaua/ocpp16-csms:0.14

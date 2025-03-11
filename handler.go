@@ -1,11 +1,14 @@
 package main
 
 import (
-	"fmt"
+  "fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/lorenzodonini/ocpp-go/ocpp1.6/logging"
+	"github.com/lorenzodonini/ocpp-go/ocpp1.6/securefirmware"
+	"github.com/lorenzodonini/ocpp-go/ocpp1.6/security"
 	"github.com/sirupsen/logrus"
 
 	"github.com/lorenzodonini/ocpp-go/ocpp1.6/core"
@@ -33,13 +36,13 @@ func defineDeviceId(chargePointId string, connectorId string) string {
 	return v
 }
 
-func defineMQTTTopic(featureName, deviceId string) string {
+func defineMQTTTopic(featureName, chargingPointId string) string {
 
 	var messageTopic strings.Builder
 	messageTopic.WriteString(path)
 	messageTopic.WriteString(featureName)
 	messageTopic.WriteString(`/`)
-	messageTopic.WriteString(deviceId)
+	messageTopic.WriteString(chargingPointId)
 	messageTopic.WriteString(`/up/imt`)
 
 	return messageTopic.String()
@@ -184,15 +187,15 @@ func (handler *CentralSystemHandler) OnMeterValues(chargePointId string, request
 	for _, mv := range request.MeterValue {
 		logDefault(chargePointId, request.GetFeatureName()).Printf("%v", mv)
 
-		deviceId := defineDeviceId(chargePointId, strconv.Itoa(request.ConnectorId))
+		// deviceId := defineDeviceId(chargePointId, strconv.Itoa(request.ConnectorId))
 		timestamp_ns := time.Now().UnixNano()
 		featureName := request.GetFeatureName()
-		t := defineMQTTTopic(featureName, deviceId)
+		t := defineMQTTTopic(featureName, chargePointId)
 
 		sbMqttMessage.Reset()
 		sbMqttMessage.WriteString(`{"featureName": "`)
 		sbMqttMessage.WriteString(featureName)
-		sbMqttMessage.WriteString(`", "ConnectorId": "`)
+		sbMqttMessage.WriteString(`", "connectorId": "`)
 		sbMqttMessage.WriteString(strconv.FormatInt(int64(request.ConnectorId), 10))
 		sbMqttMessage.WriteString(`", "chargePointId": "`)
 		sbMqttMessage.WriteString(chargePointId)
@@ -208,8 +211,8 @@ func (handler *CentralSystemHandler) OnMeterValues(chargePointId string, request
 		sbMqttMessage.WriteString(string(mv.SampledValue[0].Context))
 		sbMqttMessage.WriteString(`", "location": "`)
 		sbMqttMessage.WriteString(string(mv.SampledValue[0].Location))
-		sbMqttMessage.WriteString(`", "deviceId": "`)
-		sbMqttMessage.WriteString(deviceId)
+		// sbMqttMessage.WriteString(`", "deviceId": "`)
+		// sbMqttMessage.WriteString(deviceId)
 		sbMqttMessage.WriteString(`", "timestamp": `)
 		sbMqttMessage.WriteString(strconv.FormatInt(timestamp_ns, 10))
 		sbMqttMessage.WriteString(`}`)
@@ -237,15 +240,15 @@ func (handler *CentralSystemHandler) OnStatusNotification(chargePointId string, 
 		logDefault(chargePointId, request.GetFeatureName()).Infof("all connectors updated status to %v", request.Status)
 	}
 
-	deviceId := defineDeviceId(chargePointId, strconv.Itoa(request.ConnectorId))
+	// deviceId := defineDeviceId(chargePointId, strconv.Itoa(request.ConnectorId))
 	timestamp_ns := time.Now().UnixNano()
 	featureName := request.GetFeatureName()
-	t := defineMQTTTopic(featureName, deviceId)
+	t := defineMQTTTopic(featureName, chargePointId)
 
 	sbMqttMessage.Reset()
 	sbMqttMessage.WriteString(`{"featureName": "`)
 	sbMqttMessage.WriteString(featureName)
-	sbMqttMessage.WriteString(`", "ConnectorId": "`)
+	sbMqttMessage.WriteString(`", "connectorId": "`)
 	sbMqttMessage.WriteString(strconv.FormatInt(int64(request.ConnectorId), 10))
 	sbMqttMessage.WriteString(`", "chargePointId": "`)
 	sbMqttMessage.WriteString(chargePointId)
@@ -259,8 +262,8 @@ func (handler *CentralSystemHandler) OnStatusNotification(chargePointId string, 
 	sbMqttMessage.WriteString(request.VendorId)
 	sbMqttMessage.WriteString(`", "vendorErrorCode": "`)
 	sbMqttMessage.WriteString(request.VendorErrorCode)
-	sbMqttMessage.WriteString(`", "deviceId": "`)
-	sbMqttMessage.WriteString(deviceId)
+	// sbMqttMessage.WriteString(`", "deviceId": "`)
+	// sbMqttMessage.WriteString(deviceId)
 	sbMqttMessage.WriteString(`", "timestamp": `)
 	sbMqttMessage.WriteString(strconv.FormatInt(timestamp_ns, 10))
 	sbMqttMessage.WriteString(`}`)
@@ -301,15 +304,15 @@ func (handler *CentralSystemHandler) OnStartTransaction(chargePointId string, re
 	// }
 	logDefault(chargePointId, request.GetFeatureName()).Infof("started transaction %v for connector %v", transaction.id, transaction.connectorId)
 
-	deviceId := defineDeviceId(chargePointId, strconv.Itoa(request.ConnectorId))
+	// deviceId := defineDeviceId(chargePointId, strconv.Itoa(request.ConnectorId))
 	timestamp_ns := time.Now().UnixNano()
 	featureName := request.GetFeatureName()
-	t := defineMQTTTopic(featureName, deviceId)
+	t := defineMQTTTopic(featureName, chargePointId)
 
 	sbMqttMessage.Reset()
 	sbMqttMessage.WriteString(`{"featureName": "`)
 	sbMqttMessage.WriteString(featureName)
-	sbMqttMessage.WriteString(`", "ConnectorId": "`)
+	sbMqttMessage.WriteString(`", "connectorId": "`)
 	sbMqttMessage.WriteString(strconv.FormatInt(int64(request.ConnectorId), 10))
 	sbMqttMessage.WriteString(`", "chargePointId": "`)
 	sbMqttMessage.WriteString(chargePointId)
@@ -321,8 +324,8 @@ func (handler *CentralSystemHandler) OnStartTransaction(chargePointId string, re
 	sbMqttMessage.WriteString(strconv.FormatInt(int64(transaction.startTime.UnixNano()), 10))
 	sbMqttMessage.WriteString(`, "idTag": "`)
 	sbMqttMessage.WriteString(transaction.idTag)
-	sbMqttMessage.WriteString(`", "deviceId": "`)
-	sbMqttMessage.WriteString(deviceId)
+	// sbMqttMessage.WriteString(`", "deviceId": "`)
+	// sbMqttMessage.WriteString(deviceId)
 	sbMqttMessage.WriteString(`", "timestamp": `)
 	sbMqttMessage.WriteString(strconv.FormatInt(timestamp_ns, 10))
 	sbMqttMessage.WriteString(`}`)
@@ -374,26 +377,26 @@ func (handler *CentralSystemHandler) OnStopTransaction(chargePointId string, req
 	// deviceId := defineDeviceId(chargePointId, strconv.Itoa(request.ConnectorId))
 	// deviceId := defineDeviceId(chargePointId, Transaction[strconv.Itoa(request.TransactionId)])
 
-	deviceId := defineDeviceId(chargePointId, "0")
+	// deviceId := defineDeviceId(chargePointId, "0")
 	timestamp_ns := time.Now().UnixNano()
 	featureName := request.GetFeatureName()
-	t := defineMQTTTopic(featureName, (deviceId))
+	t := defineMQTTTopic(featureName, (chargePointId))
 
 	sbMqttMessage.Reset()
 	sbMqttMessage.WriteString(`{"featureName": "`)
 	sbMqttMessage.WriteString(featureName)
-	sbMqttMessage.WriteString(`", "ConnectorId": "`)
+	sbMqttMessage.WriteString(`", "connectorId": "`)
 	sbMqttMessage.WriteString(Transaction[strconv.Itoa(request.TransactionId)])
 	sbMqttMessage.WriteString(`", "chargePointId": "`)
 	sbMqttMessage.WriteString(chargePointId)
 	sbMqttMessage.WriteString(`", "transactionId": "`)
 	sbMqttMessage.WriteString(strconv.FormatInt(int64(request.TransactionId), 10))
-	sbMqttMessage.WriteString(`", "MeterStop": `)
+	sbMqttMessage.WriteString(`", "meterStop": `)
 	sbMqttMessage.WriteString(strconv.FormatInt(int64(request.MeterStop), 10))
 	sbMqttMessage.WriteString(`, "stopTime": `)
 	sbMqttMessage.WriteString(strconv.FormatInt(int64(request.Timestamp.UnixNano()), 10))
-	sbMqttMessage.WriteString(`, "deviceId" : "`)
-	sbMqttMessage.WriteString(deviceId)
+	// sbMqttMessage.WriteString(`, "deviceId" : "`)
+	// sbMqttMessage.WriteString(deviceId)
 	sbMqttMessage.WriteString(`", "timestamp": `)
 	sbMqttMessage.WriteString(strconv.FormatInt(timestamp_ns, 10))
 	sbMqttMessage.WriteString(`}`)
@@ -429,6 +432,26 @@ func (handler *CentralSystemHandler) OnFirmwareStatusNotification(chargePointId 
 }
 
 // No callbacks for Local Auth management, Reservation, Remote trigger or Smart Charging profile on central system
+
+func (handler *CentralSystemHandler) OnSecurityEventNotification(chargingStationID string, request *security.SecurityEventNotificationRequest) (response *security.SecurityEventNotificationResponse, err error) {
+	logDefault(chargingStationID, request.GetFeatureName()).Infof("security event notification received")
+	return security.NewSecurityEventNotificationResponse(), nil
+}
+
+func (handler *CentralSystemHandler) OnSignCertificate(chargingStationID string, request *security.SignCertificateRequest) (response *security.SignCertificateResponse, err error) {
+	logDefault(chargingStationID, request.GetFeatureName()).Infof("certificate signing request received")
+	return security.NewSignCertificateResponse(types.GenericStatusAccepted), nil
+}
+
+func (handler *CentralSystemHandler) OnSignedFirmwareStatusNotification(chargingStationID string, request *securefirmware.SignedFirmwareStatusNotificationRequest) (response *securefirmware.SignedFirmwareStatusNotificationResponse, err error) {
+	logDefault(chargingStationID, request.GetFeatureName()).Infof("signed firmware status notification received")
+	return securefirmware.NewFirmwareStatusNotificationResponse(), nil
+}
+
+func (handler *CentralSystemHandler) OnLogStatusNotification(chargingStationID string, request *logging.LogStatusNotificationRequest) (response *logging.LogStatusNotificationResponse, err error) {
+	logDefault(chargingStationID, request.GetFeatureName()).Infof("log status notification received")
+	return logging.NewLogStatusNotificationResponse(), nil
+}
 
 // Utility functions
 
