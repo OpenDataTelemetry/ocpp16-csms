@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 
 	ocpp16 "github.com/lorenzodonini/ocpp-go/ocpp1.6"
 	"github.com/lorenzodonini/ocpp-go/ocpp1.6/core"
+
 	// "github.com/lorenzodonini/ocpp-go/ocpp1.6/firmware"
 	// "github.com/lorenzodonini/ocpp-go/ocpp1.6/localauth"
 	// "github.com/lorenzodonini/ocpp-go/ocpp1.6/remotetrigger"
@@ -39,6 +41,21 @@ var MQTT_BROKER = os.Getenv("MQTT_BROKER")
 
 var log *logrus.Logger
 var centralSystem ocpp16.CentralSystem
+
+type EvseDown struct {
+	Name   string `json:"name"`
+	Tags   Tags `json:"tags"`
+
+}
+type Tags struct {
+	ConnectorId   string `json:"connectorId"`
+	// FeatureName   string `json:"featureName"`
+	// DeviceId      string `json:"deviceId"`
+	// EvseId        string `json:"evseId"`
+	// DeviceType    string `json:"deviceType"`
+	// ChargePointId string `json:"chargePointId"`
+	// Timestamp     int64  `json:"timestamp"`
+}
 
 func setupCentralSystem() ocpp16.CentralSystem {
 	return ocpp16.NewCentralSystem(nil, nil)
@@ -231,7 +248,7 @@ func subscribeRoutine(chargePointID string, handler *CentralSystemHandler) {
 	var sbMqttSubTopic strings.Builder
 	// sbMqttSubTopic.WriteString("debug/OpenDataTelemetry/")
 	// sbMqttSubTopic.WriteString("IMT/EVSE/UnlockConnector/BRIMTE19400577/down/+")
-	sbMqttSubTopic.WriteString("IMT/EVSE/")
+	sbMqttSubTopic.WriteString("IMT/EVSE/+/")
 	sbMqttSubTopic.WriteString(chargePointID)
 	sbMqttSubTopic.WriteString("/down/+")
 	// sbMqttSubTopic.WriteString(DEVICE_TYPE)
@@ -286,7 +303,10 @@ func subscribeRoutine(chargePointID string, handler *CentralSystemHandler) {
 		deviceType := s[1]
 		measurement := s[2]
 		// chargingPointId := s[3]
-		connectorID := 0
+		var evseDown EvseDown
+		json.Unmarshal([]byte(incoming[1]), &evseDown)
+
+		connectorID, _ := (strconv.ParseInt(evseDown.Tags.ConnectorId, 10, 64))
 		// direction := s[4]
 		// etc := s[5]
 
@@ -296,6 +316,8 @@ func subscribeRoutine(chargePointID string, handler *CentralSystemHandler) {
 		// direction := s[6]
 		// etc := s[7]
 
+		
+
 		switch organization {
 		case "IMT":
 			switch deviceType {
@@ -303,6 +325,7 @@ func subscribeRoutine(chargePointID string, handler *CentralSystemHandler) {
 				// m := parseEvseFeatureName(measurement, deviceId, incoming[1])
 				switch measurement {
 				case "RemoteStopTransaction":
+					fmt.Printf("Entrou RemoteStopTransaction")
 					// Remote stop
 					// Wait for some time
 					// chargePointID, connectorID := defineChargingPointConnectorId(deviceId)
@@ -317,7 +340,7 @@ func subscribeRoutine(chargePointID string, handler *CentralSystemHandler) {
 							// Success
 						}
 					}
-					e := centralSystem.RemoteStopTransaction(chargePointID, cbStop, connectorID)
+					e := centralSystem.RemoteStopTransaction(chargePointID, cbStop, int(connectorID))
 					if e != nil {
 						logDefault(chargePointID, reservation.ReserveNowFeatureName).Errorf("couldn't send message: %v", e)
 						return
@@ -343,7 +366,7 @@ func subscribeRoutine(chargePointID string, handler *CentralSystemHandler) {
 							// Success
 						}
 					}
-					e := centralSystem.UnlockConnector(chargePointID, cbUnlock, connectorID)
+					e := centralSystem.UnlockConnector(chargePointID, cbUnlock, int(connectorID))
 					if e != nil {
 						logDefault(chargePointID, core.UnlockConnectorFeatureName).Errorf("couldn't send message: %v", e)
 						return
